@@ -1,0 +1,6 @@
+[auth.ldap]
+    login="someuser"
+    secret="somesecret"
+[influxdb]
+    host="localhost"
+    port="8086"
