@@ -4,3 +4,5 @@
 [influxdb]
     host="localhost"
     port="8086"
+[web]
+    bindAddress="localhost:8888"
