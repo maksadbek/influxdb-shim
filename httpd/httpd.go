@@ -26,7 +26,7 @@ func NewService(c *viper.Viper) *service {
 		UserAgent: c.GetString("influxdb.userAgent"),
 	}
 	s := &service{
-		addr:    c.GetString("web.bindAddress"),
+		addr:    c.GetString("web.addr"),
 		Handler: NewHandler(influxConfig),
 		err:     make(chan error),
 	}

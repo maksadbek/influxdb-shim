@@ -5,6 +5,6 @@
     addr="localhost:8086"
     username=""
     password=""
-    userAgent="InfluxDBClient"
+    userAgent=""
 [web]
-    bindAddress="localhost:8888"
+    addr="localhost:8888"

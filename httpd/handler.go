@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/bmizerany/pat"
@@ -17,14 +18,14 @@ type route struct {
 
 // HTTP handler to InfluxDB
 type handler struct {
-	mux          *pat.PatternServeMux
-	influxConfig client.HTTPConfig
+	mux        *pat.PatternServeMux
+	influxConf client.HTTPConfig
 }
 
 func NewHandler(c client.HTTPConfig) *handler {
 	h := &handler{
-		mux:          pat.New(),
-		influxConfig: c,
+		mux:        pat.New(),
+		influxConf: c,
 	}
 	h.SetRoutes([]route{
 		route{
@@ -50,5 +51,30 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
-	glog.Info("query handler")
+	err := r.ParseForm()
+	if err != nil {
+		glog.Errorf("Unable to parse form: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	u := r.Form.Get("u")   // user
+	db := r.Form.Get("db") // database
+	q := r.Form.Get("q")   // query
+	p := r.Form.Get("p")   // password
+
+	glog.Infof("Query '%s' from user: '%s' with password '%s' to database: '%s'", q, u, p, db)
+
+	c, err := client.NewHTTPClient(h.influxConf)
+	if err != nil {
+		glog.Errorf("Unable to open connection to InfluxDB: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	query := client.NewQuery(q, db, "ns")
+	response, err := c.Query(query)
+	if err != nil {
+		glog.Errorf("Unable to run query to InfluxDB: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	encoder := json.NewEncoder(w)
+	encoder.Encode(response)
 }
