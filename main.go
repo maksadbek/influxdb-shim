@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 
+	"github.com/Maksadbek/influxdb-shim/httpd"
 	"github.com/golang/glog"
 	"github.com/spf13/viper"
 )
@@ -20,12 +21,20 @@ func main() {
 	flag.Parse()
 	glog.Info("starting...")
 	// setup config
-	viper.SetConfigType(configType)
-	viper.SetConfigName(*config)
-	viper.AddConfigPath(*configPath)
-	if err := viper.ReadInConfig(); err != nil {
+	v := viper.New()
+	v.SetConfigType(configType)
+	v.SetConfigName(*config)
+	v.AddConfigPath(*configPath)
+	if err := v.ReadInConfig(); err != nil {
 		glog.Fatal(err)
 	}
-	glog.Info(viper.GetString("auth.ldap.login"))
-	glog.Info(viper.GetString("auth.ldap.secret"))
+
+	webService := httpd.NewService(v)
+	go func() {
+		for err := range webService.Err() {
+			glog.Fatal(err)
+		}
+	}()
+	glog.Fatal(webService.Open())
+
 }

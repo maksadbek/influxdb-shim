@@ -2,7 +2,9 @@
     login="someuser"
     secret="somesecret"
 [influxdb]
-    host="localhost"
-    port="8086"
+    addr="localhost:8086"
+    username=""
+    password=""
+    userAgent="InfluxDBClient"
 [web]
     bindAddress="localhost:8888"

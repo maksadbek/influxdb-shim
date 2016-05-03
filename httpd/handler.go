@@ -5,7 +5,7 @@ import (
 
 	"github.com/bmizerany/pat"
 	"github.com/golang/glog"
-	influxdb "github.com/influxdata/influxdb/client/v2"
+	"github.com/influxdata/influxdb/client/v2"
 )
 
 type route struct {
@@ -17,14 +17,14 @@ type route struct {
 
 // HTTP handler to InfluxDB
 type handler struct {
-	mux      *pat.PatternServeMux
-	dbClient influxdb.Client
+	mux          *pat.PatternServeMux
+	influxConfig client.HTTPConfig
 }
 
-func NewHandler(c influxdb.Client) *handler {
+func NewHandler(c client.HTTPConfig) *handler {
 	h := &handler{
-		mux:      pat.New(),
-		dbClient: c,
+		mux:          pat.New(),
+		influxConfig: c,
 	}
 	h.SetRoutes([]route{
 		route{
