@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"gopkg.in/fatih/set.v0"
+
 	"github.com/golang/glog"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/spf13/viper"
@@ -25,9 +27,14 @@ func NewService(c *viper.Viper) *service {
 		Password:  c.GetString("influxdb.password"),
 		UserAgent: c.GetString("influxdb.userAgent"),
 	}
+	blacklist := set.New()
+	for _, v := range c.GetStringSlice("blacklist.queries") {
+		blacklist.Add(strings.ToLower(strings.Replace(v, " ", "", -1)))
+	}
+
 	s := &service{
 		addr:    c.GetString("web.addr"),
-		Handler: NewHandler(influxConfig),
+		Handler: NewHandler(influxConfig, blacklist),
 		err:     make(chan error),
 	}
 

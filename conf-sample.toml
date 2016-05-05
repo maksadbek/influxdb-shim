@@ -1,10 +1,14 @@
 [auth.ldap]
-    login="someuser"
-    secret="somesecret"
+    name        = ""
+    host        = ""
+    port        = ""
+    useTLS      = false
 [influxdb]
-    addr="localhost:8086"
-    username=""
-    password=""
-    userAgent=""
+    addr        = "127.0.0.1:8086"
+    username    = ""
+    password    = ""
+    userAgent   = ""
 [web]
-    addr="localhost:8888"
+    addr        = "127.0.0.1:8888"
+[blacklist]
+    queries     = [""]
