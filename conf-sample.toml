@@ -3,6 +3,10 @@
     host        = ""
     port        = ""
     useTLS      = false
+    email       = ""
+    userBase    = ""
+    userFilter  = ""
+    userDN      = ""
 [influxdb]
     addr        = "127.0.0.1:8086"
     username    = ""
