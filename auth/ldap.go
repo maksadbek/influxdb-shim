@@ -1,15 +1,18 @@
-package ldap
+package auth
 
-import "github.com/gogits/gogs/modules/auth/ldap"
+import (
+	"github.com/gogits/gogs/modules/auth/ldap"
+	"github.com/spf13/viper"
+)
 
-func NewSource(name, host, port, email, userBase, filter, userDN string) *ldap.Source {
+func NewSource(c *viper.Viper) *ldap.Source {
 	return &ldap.Source{
-		Name:          name,
-		Host:          host,
-		Port:          port,
-		AttributeMail: email,
-		UserBase:      userBase,
-		UserFilter:    filter,
-		UserDN:        userDN,
+		Name:          c.GetString("auth.ldap.name"),
+		Host:          c.GetString("auth.ldap.host"),
+		Port:          c.GetInt("auth.ldap.port"),
+		AttributeMail: c.GetString("auth.ldap.email"),
+		UserBase:      c.GetString("auth.ldap.userBase"),
+		Filter:        c.GetString("auth.ldap.filter"),
+		UserDN:        c.GetString("auth.ldap.userDN"),
 	}
 }
