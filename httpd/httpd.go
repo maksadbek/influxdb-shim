@@ -8,6 +8,7 @@ import (
 
 	"gopkg.in/fatih/set.v0"
 
+	"github.com/Maksadbek/influxdb-shim/auth"
 	"github.com/golang/glog"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/spf13/viper"
@@ -32,9 +33,12 @@ func NewService(c *viper.Viper) *service {
 		blacklist.Add(strings.ToLower(strings.Replace(v, " ", "", -1)))
 	}
 
+	source := auth.NewSource(c)
+	useBindDN := c.GetBool("auth.ldap.useBindDN")
+
 	s := &service{
 		addr:    c.GetString("web.addr"),
-		Handler: NewHandler(influxConfig, blacklist),
+		Handler: NewHandler(influxConfig, blacklist, source, useBindDN),
 		err:     make(chan error),
 	}
 

@@ -3,17 +3,22 @@ package httpd
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"gopkg.in/fatih/set.v0"
 
 	"github.com/bmizerany/pat"
+	"github.com/gogits/gogs/modules/auth/ldap"
 	"github.com/golang/glog"
 	"github.com/influxdata/influxdb/client/v2"
 )
 
-var ErrProhibitedQuery = errors.New("This query is prohibited")
+var (
+	ErrProhibitedQuery = errors.New("This query is prohibited")
+	ErrUserNotFound    = errors.New("User with such uid and password not found")
+)
 
 type route struct {
 	name       string
@@ -27,18 +32,26 @@ type handler struct {
 	mux        *pat.PatternServeMux
 	influxConf client.HTTPConfig
 	blacklist  *set.Set
+	source     *ldap.Source
+	useBindDN  bool
 }
 
-func NewHandler(c client.HTTPConfig, b *set.Set) *handler {
+func NewHandler(c client.HTTPConfig, b *set.Set, source *ldap.Source, bdn bool) *handler {
 	h := &handler{
 		mux:        pat.New(),
 		influxConf: c,
 		blacklist:  b,
+		source:     source,
+		useBindDN:  bdn,
 	}
 	h.SetRoutes([]route{
 		route{
 			"query",
 			"GET", "/query", h.serveQuery,
+		},
+		route{
+			"auth",
+			"POST", "/auth", h.serveAuth,
 		},
 	})
 	return h
@@ -56,6 +69,25 @@ func (h *handler) SetRoutes(routes []route) {
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
+}
+
+func (h *handler) serveAuth(w http.ResponseWriter, r *http.Request) {
+	glog.Info("auth")
+	err := r.ParseForm()
+	if err != nil {
+		glog.Errorf("Unable to parse form: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	uid, p := r.Form.Get("uid"), r.Form.Get("p")
+	name, _, _, mail, admin, logged := h.source.SearchEntry(uid, p, h.useBindDN)
+	if !logged {
+		glog.Errorf("Invalid user credentials: uid: '%s', password: '%s'", uid, p)
+		http.Error(w, ErrUserNotFound.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	fmt.Fprintf(w, mail, name, admin)
 }
 
 func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
