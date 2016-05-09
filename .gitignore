@@ -26,3 +26,4 @@ _testmain.go
 conf.toml
 blacklist.toml
 ldap-auth
+*.swp
