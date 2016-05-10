@@ -1,16 +1,20 @@
 [auth]
     [ldap]
-        name        = ""    # a name assigned to the new method of authorization
-        host        = ""    # example: mydomain.com
-        port        = ""    # example: 636
-        useTLS      = false # whether to use TLS when connecting to the LDAP server
-        email       = ""    # the attribute of the user's LDAP record containing email address, example: email
-        bindDN      = ""    # example: cn=Search,dc=mydomain,dc=com
-        bindPasswd  = ""    # the password for the Bind DN
-        userBase    = ""    # example: ou=Users,dc=mydomain,dc=com
-        userFilter  = ""    # example: (&(objectClass=posixAccount)(uid=%s)), %s param will be substituted with user's username
-        userDN      = ""    # example: cn=%s,ou=Users,dc=mydomain,dc=com
-        useBindDN   = false # using bindDN authentication
+        name        = ""        # a name assigned to the new method of authorization
+        host        = ""        # example: mydomain.com
+        port        = ""        # example: 636
+        useTLS      = false     # whether to use TLS when connecting to the LDAP server
+        bindDN      = ""        # example: cn=Search,dc=mydomain,dc=com
+        bindPasswd  = ""        # the password for the Bind DN
+        userBase    = ""        # example: ou=Users,dc=mydomain,dc=com
+        userFilter  = ""        # example: (&(objectClass=posixAccount)(uid=%s)), %s param will be substituted with user's username
+        userDN      = ""        # example: cn=%s,ou=Users,dc=mydomain,dc=com
+        useBindDN   = false     # using bindDN authentication
+        attrUsername= ""
+        attrName    = ""
+        attrSurname = ""
+        attrMail    = ""        # the attribute of the user's LDAP record containing email address, example: email
+
 [influxdb]
     addr        = "127.0.0.1:8086"
     username    = ""
