@@ -34,11 +34,10 @@ func NewService(c *viper.Viper) *service {
 	}
 
 	source := auth.NewSource(c)
-	useBindDN := c.GetBool("auth.ldap.useBindDN")
 
 	s := &service{
 		addr:    c.GetString("web.addr"),
-		Handler: NewHandler(influxConfig, blacklist, source, useBindDN),
+		Handler: NewHandler(influxConfig, blacklist, source),
 		err:     make(chan error),
 	}
 

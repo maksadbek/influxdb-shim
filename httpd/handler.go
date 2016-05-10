@@ -9,8 +9,8 @@ import (
 
 	"gopkg.in/fatih/set.v0"
 
+	"github.com/Maksadbek/influxdb-shim/auth"
 	"github.com/bmizerany/pat"
-	"github.com/gogits/gogs/modules/auth/ldap"
 	"github.com/golang/glog"
 	"github.com/influxdata/influxdb/client/v2"
 )
@@ -32,17 +32,16 @@ type handler struct {
 	mux        *pat.PatternServeMux
 	influxConf client.HTTPConfig
 	blacklist  *set.Set
-	source     *ldap.Source
+	source     *auth.Source
 	useBindDN  bool
 }
 
-func NewHandler(c client.HTTPConfig, b *set.Set, source *ldap.Source, bdn bool) *handler {
+func NewHandler(c client.HTTPConfig, b *set.Set, source *auth.Source) *handler {
 	h := &handler{
 		mux:        pat.New(),
 		influxConf: c,
 		blacklist:  b,
 		source:     source,
-		useBindDN:  bdn,
 	}
 	h.SetRoutes([]route{
 		route{
@@ -80,14 +79,14 @@ func (h *handler) serveAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uid, p := r.Form.Get("uid"), r.Form.Get("p")
-	name, _, _, mail, admin, logged := h.source.SearchEntry(uid, p, h.useBindDN)
+	user, logged := h.source.Login(uid, p)
 	if !logged {
 		glog.Errorf("Invalid user credentials: uid: '%s', password: '%s'", uid, p)
 		http.Error(w, ErrUserNotFound.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	fmt.Fprintf(w, mail, name, admin)
+	fmt.Fprintf(w, "%+v", user)
 }
 
 func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
