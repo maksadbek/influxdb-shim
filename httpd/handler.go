@@ -88,7 +88,7 @@ func (h *handler) serveAuth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errUserNotFound.Error(), http.StatusUnauthorized)
 		return
 	}
-	
+
 	tokenString, err := h.signer.Sign(user)
 	if err != nil {
 		glog.Errorf("Unable to sign the token: %s", err.Error())
@@ -99,6 +99,8 @@ func (h *handler) serveAuth(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, tokenString)
 }
 
+// serveQuery is the query handler that receives InfluxDB queries and send results back
+// it checks access through access token that is passed on query header
 func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -106,11 +108,31 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	u := r.Form.Get("u")   // user
+	q := r.Form.Get("q")   // user
 	db := r.Form.Get("db") // database
-	q := r.Form.Get("q")   // query
-	p := r.Form.Get("p")   // password
 
+	if q == "" || db == "" {
+		glog.Errorf("Query does not contain query string or database")
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	// get access token and verify
+	tokenString := r.Header.Get("AccessToken")
+	if tokenString == "" {
+		glog.Errorf("Query does not contain access token")
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	_, err = h.signer.Parse(tokenString)
+	if err != nil {
+		glog.Errorf("Invalid access token")
+		http.Error(w, "Invalid access token", http.StatusBadRequest)
+		return
+	}
+
+	// TODO check user's groups
 	cleanedQuery := strings.Replace(strings.ToLower(strings.TrimSpace(q)), " ", "", -1)
 	// check if user in blacklist
 	if h.blacklist.Has(cleanedQuery) {
@@ -119,7 +141,7 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	glog.Infof("Query '%s' from user: '%s' with password '%s' to database: '%s'", q, u, p, db)
+	glog.Infof("Query '%s' to database: '%s'", q, db)
 
 	c, err := client.NewHTTPClient(h.influxConf)
 	if err != nil {
