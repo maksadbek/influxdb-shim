@@ -5,12 +5,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// source is the proxy for ldap.Source
+// Source is the proxy for ldap.Source
 type Source struct {
 	s         *ldap.Source
 	UseBindDN bool
 }
 
+// Login can be used to check user id and password,
+// returns full user info if succeded
 func (source *Source) Login(uid, password string) (User, bool) {
 	name, un, sn, mail, admin, logged := source.s.SearchEntry(uid, password, source.UseBindDN)
 	if !logged {
@@ -26,14 +28,17 @@ func (source *Source) Login(uid, password string) (User, bool) {
 	return u, logged
 }
 
+// User contains the user information
 type User struct {
-	Email    string
-	Name     string
-	Username string
-	Surname  string
-	IsAdmin  bool
+	Email      string
+	Name       string
+	Username   string
+	Surname    string
+	IsAdmin    bool
+	GroupNames []string
 }
 
+// NewSource can be used to create new Source object with the given params
 func NewSource(c *viper.Viper) *Source {
 	return &Source{
 		s: &ldap.Source{
