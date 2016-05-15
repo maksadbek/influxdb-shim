@@ -1,4 +1,9 @@
 [auth]
+    [token]
+        pubKeyPath  = ""        # public key file path
+        privKeyPath = ""        # private key file path
+        method      = ""        # method of signing, e.g: RS256, HS256
+        ttl         = 10        # lifetime of the token in minutes. Token is not valid is expired
     [ldap]
         name        = ""        # a name assigned to the new method of authorization
         host        = ""        # example: mydomain.com
@@ -7,13 +12,13 @@
         bindDN      = ""        # example: cn=Search,dc=mydomain,dc=com
         bindPasswd  = ""        # the password for the Bind DN
         userBase    = ""        # example: ou=Users,dc=mydomain,dc=com
-        userFilter  = ""        # example: (&(objectClass=posixAccount)(uid=%s)), %s param will be substituted with user's username
+        userFilter  = ""        # example: (&(objectClass=*)(uid=%s)), '%s' will be substituted with user's username
         userDN      = ""        # example: cn=%s,ou=Users,dc=mydomain,dc=com
-        useBindDN   = false     # using bindDN authentication
+        useBindDN   = false     # use bindDN auth instead of simple auth
         attrUsername= ""
         attrName    = ""
         attrSurname = ""
-        attrMail    = ""        # the attribute of the user's LDAP record containing email address, example: email
+        attrMail    = ""        # attribute of user's record containing email, example: 'mail'
 
 [influxdb]
     addr        = "127.0.0.1:8086"

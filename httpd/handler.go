@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	ErrProhibitedQuery = errors.New("This query is prohibited")
-	ErrUserNotFound    = errors.New("User with such uid and password not found")
+	errProhibitedQuery = errors.New("This query is prohibited")
+	errUserNotFound    = errors.New("User with such uid and password not found")
 )
 
 type route struct {
@@ -33,15 +33,18 @@ type handler struct {
 	influxConf client.HTTPConfig
 	blacklist  *set.Set
 	source     *auth.Source
+	signer     *auth.Signer
 	useBindDN  bool
 }
 
-func NewHandler(c client.HTTPConfig, b *set.Set, source *auth.Source) *handler {
+// NewHandler create new handler object
+func NewHandler(c client.HTTPConfig, b *set.Set, source *auth.Source, signer *auth.Signer) *handler {
 	h := &handler{
 		mux:        pat.New(),
 		influxConf: c,
 		blacklist:  b,
 		source:     source,
+		signer:     signer,
 	}
 	h.SetRoutes([]route{
 		route{
@@ -82,11 +85,18 @@ func (h *handler) serveAuth(w http.ResponseWriter, r *http.Request) {
 	user, logged := h.source.Login(uid, p)
 	if !logged {
 		glog.Errorf("Invalid user credentials: uid: '%s', password: '%s'", uid, p)
-		http.Error(w, ErrUserNotFound.Error(), http.StatusUnauthorized)
+		http.Error(w, errUserNotFound.Error(), http.StatusUnauthorized)
 		return
 	}
-
-	fmt.Fprintf(w, "%+v", user)
+	
+	tokenString, err := h.signer.Sign(user)
+	if err != nil {
+		glog.Errorf("Unable to sign the token: %s", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// send token back
+	fmt.Fprintf(w, tokenString)
 }
 
 func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +115,7 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 	// check if user in blacklist
 	if h.blacklist.Has(cleanedQuery) {
 		glog.Infof("Blocked query('%s') was denied", q)
-		http.Error(w, ErrProhibitedQuery.Error(), http.StatusForbidden)
+		http.Error(w, errProhibitedQuery.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -126,5 +136,8 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	encoder := json.NewEncoder(w)
-	encoder.Encode(response)
+	if err := encoder.Encode(response); err != nil {
+		glog.Errorf("unable to encode json: %s", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

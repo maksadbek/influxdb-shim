@@ -10,15 +10,15 @@ var (
 	errInvalidToken = errors.New("Invalid Token")
 )
 
-type signer struct {
+type Signer struct {
 	PrivKey []byte // private key to sign in
 	PubKey  []byte // public key to verify
 	TTL     int    // time to live of the token(expiration period), in minutes
 	Method  string
 }
 
-func NewSigner(privKey, pubKey []byte, method string, ttl int) *signer {
-	return &signer{
+func NewSigner(privKey, pubKey []byte, method string, ttl int) *Signer {
+	return &Signer{
 		PrivKey: privKey,
 		PubKey:  pubKey,
 		Method:  method,
@@ -27,7 +27,7 @@ func NewSigner(privKey, pubKey []byte, method string, ttl int) *signer {
 }
 
 // Sign can be used to get signed token of user
-func (s *signer) Sign(user User) (string, error) {
+func (s *Signer) Sign(user User) (string, error) {
 
 	t := jwt.New(jwt.GetSigningMethod(s.Method))
 	t.Claims["email"] = user.Email
@@ -39,7 +39,7 @@ func (s *signer) Sign(user User) (string, error) {
 	return t.SignedString(s.PrivKey)
 }
 
-func (s *signer) Parse(token string) (User, error) {
+func (s *Signer) Parse(token string) (User, error) {
 	var u User
 	t, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		return s.PubKey, nil
