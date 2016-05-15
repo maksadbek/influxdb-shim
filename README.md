@@ -62,14 +62,53 @@ Configuations are kept in toml file format, but can be changed to any other.
 [web]
     addr        = "127.0.0.1:8888"
 [blacklist]
-    queries     = [""]      # blacklist of queries that is prohibitied to run, example: "SHOW DATABASES"
-    adminGroup  = "admin"   # admin group name, this group members can see & run everything
-    [groups]                # group specifications, group members have allowed and denied query list 
-        [global]            # sample group
-            allowed = [
-                ""
-            ]
-            denied = [
-                ""
-            ]
+    queries     = [""]        # blacklist of queries that is prohibitied to run, example: "SHOW DATABASES"
+    adminGroup  = "admin"     # admin group name, this group members can see & run everything
+# group specifications, group members have allowed and denied query list
+[[groups]]                # [[groups]]
+    ou = ""               #     ou = "Global group"
+    cn = ""               #     cn = "Admin"
+    deniedQueries = [     #     deniedQueries = [
+        "",               #         "Show measurements",
+        ""                #         "SHOW TAGS"
+    ]                     #     ]
+```
+
+## Usage
+To use the shim users must firstly get JWT token string.
+The purpose of chosing JWT token is that it already contains the required info about user in itself.
+That is why no need to keep user info in backend.
+
+#### 1. Authorize with your LDAP credentials and get token string 
+
+Initially the shim listens ```8888``` port
+
+**Input parameters:**
+* ```uid``` the user id from LDAP credentials
+* ```p``` the password from LDAP credentials
+
+```
+curl -XPOST "localhost:8888/auth?uid=tesla&p=password"
+```
+This request returns the token string
+```
+eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc2xhQGxkYXAuZm9ydW1zeXMuY29tIiwiaXNBZG1pbiI6ZmFsc2UsIm5hbWUiOiJ0ZXNsYSIsInN1cm5hbWUiOiJUZXNsYSIsInVzZXJuYW1lIjoiTmlrb2xhIFRlc2xhIn0.d_VhNIDcQ9qYMv2gbmq-8VypHw-dr2N3UWds-JMEkj2KBzFujYBzQV2G03grNPi5wR6AdwBESdys3vZNZJ1edK9LyH1dC4KsBL7xhMfmOR4dW1IMNoc_3C7BW1oWKat8Mu0-3rHmA7fftlfr5aKBs2uhDqLtuVSG28731-3g7L8
+```
+
+
+#### 2. Send queries with 
+
+**Input parameters**
+
+* ```q``` InfluxDB query
+* ```db``` InfluxDB database
+* ```AccessToken``` in header is the token string
+
+Header of the request must include ```AccessToken```, it must include the token string that is receipt from authorization 
+
+```
+curl -G 'http://localhost:8888/query?pretty=true' \
+    --data-urlencode "db=mydb" \
+    --data-urlencode "q=SHOW TAGS" \
+    -H "AccessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc2xhQGxkYXAuZm9ydW1zeXMuY29tIiwiaXNBZG1pbiI6ZmFsc2UsIm5hbWUiOiJ0ZXNsYSIsInN1cm5hbWUiOiJUZXNsYSIsInVzZXJuYW1lIjoiTmlrb2xhIFRlc2xhIn0.d_VhNIDcQ9qYMv2gbmq-8VypHw-dr2N3UWds-JMEkj2KBzFujYBzQV2G03grNPi5wR6AdwBESdys3vZNZJ1edK9LyH1dC4KsBL7xhMfmOR4dW1IMNoc_3C7BW1oWKat8Mu0-3rHmA7fftlfr5aKBs2uhDqLtuVSG28731-3g7L8"
 ```
