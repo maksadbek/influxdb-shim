@@ -30,11 +30,11 @@
 [blacklist]
     queries     = [""]        # blacklist of queries that is prohibitied to run, example: "SHOW DATABASES"
     adminGroup  = "admin"     # admin group name, this group members can see & run everything
-    # group specifications, group members have allowed and denied query list
-    [[groups]]                # [[groups]]
-        ou = ""               #     ou = "Global group"
-        cn = ""               #     cn = "Admin"
-        deniedQueries = [     #     deniedQueries = [
-            "",               #         "Show measurements",
-            ""                #         "SHOW TAGS"
-        ]                     #     ]
+# group specifications, group members have allowed and denied query list
+[[groups]]                # [[groups]]
+    ou = ""               #     ou = "Global group"
+    cn = ""               #     cn = "Admin"
+    deniedQueries = [     #     deniedQueries = [
+        "",               #         "Show measurements",
+        ""                #         "SHOW TAGS"
+    ]                     #     ]
