@@ -1,6 +1,9 @@
 package auth
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // test public key
 var pubKey string = `-----BEGIN PUBLIC KEY-----
@@ -89,7 +92,7 @@ func TestToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if user != testUser {
+	if !reflect.DeepEqual(user, testUser) {
 		t.Errorf("want %+v, got %+v", testUser, user)
 	}
 }

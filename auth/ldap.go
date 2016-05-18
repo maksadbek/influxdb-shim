@@ -1,7 +1,8 @@
 package auth
 
 import (
-	"github.com/gogits/gogs/modules/auth/ldap"
+	"github.com/Maksadbek/gogs/modules/auth/ldap"
+	"github.com/golang/glog"
 	"github.com/spf13/viper"
 )
 
@@ -25,6 +26,19 @@ func (source *Source) Login(uid, password string) (User, bool) {
 		Surname:  sn,
 		IsAdmin:  admin,
 	}
+
+	groups, err := source.s.Search(source.s.UserBase, source.s.Filter, []string{"memberOf"})
+	if err != nil {
+		glog.Errorf("Unable to get user's groups: %s", err.Error())
+		return u, logged
+	}
+
+	if len(groups) > 0 {
+		for _, dn := range groups[0].Attrs {
+			u.GroupNames = dn.Values
+		}
+	}
+
 	return u, logged
 }
 
