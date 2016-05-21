@@ -16,7 +16,7 @@ func TestNewGroup(t *testing.T) {
         ou = "Gryfinndor"
         cn = "Wizards"
         dc = "DC=White,DC=com"
-        deniedQueries = [
+        queries = [
             "Bombardo maxima",
             "Avada kedavra"
         ]
@@ -24,7 +24,7 @@ func TestNewGroup(t *testing.T) {
         ou = "Slizeren"
         dc = "DC=Black,DC=com"
         cn = "Witchs"
-        deniedQueries = [
+        queries = [
             "Crucio",
             "Imperio"
         ]`)
@@ -65,16 +65,16 @@ func TestNewGroup(t *testing.T) {
 	}
 
 	for _, d := range testData {
-		if g, ok := group.Get(d.name); ok {
+		if g, ok := group.Search(d.name); ok {
 			if g.CN != d.cn {
 				t.Errorf("want %s, got %s", d.cn, g.CN)
 			}
-			if len(g.DeniedQueries) != len(d.q) {
+			if len(g.Queries) != len(d.q) {
 				t.Fatalf("group queries are invalid")
 			}
 			for i := range d.q {
-				if g.DeniedQueries[i] != d.q[i] {
-					t.Errorf("want %+v, got %+v", d.q[i], g.DeniedQueries[i])
+				if g.Queries[i] != d.q[i] {
+					t.Errorf("want %+v, got %+v", d.q[i], g.Queries[i])
 				}
 			}
 		} else {

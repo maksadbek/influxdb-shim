@@ -2,18 +2,21 @@ package conf
 
 import (
 	"fmt"
-	"sync"
 
+	"github.com/Maksadbek/influxdb-shim/util"
 	"github.com/golang/glog"
 	"github.com/spf13/viper"
 )
 
+// Groups type is the slice of Group
+type Groups map[string]Group
+
 // Group contains the group infos, include CN(common name) and OU(org unit)
 type Group struct {
-	OU            string   `toml:"ou"`
-	DC            string   `soml:"dc"`
-	CN            string   `toml:"cn"`
-	DeniedQueries []string `toml:"deniedQueries"`
+	OU      string   `toml:"ou"`
+	DC      string   `soml:"dc"`
+	CN      string   `toml:"cn"`
+	Queries []string `toml:"queries"`
 }
 
 // GetFullname receives domain component and retuns full LDAP name of the group,
@@ -22,45 +25,67 @@ func (g Group) GetFullname() string {
 	return fmt.Sprintf("CN=%s,OU=%s,%s", g.CN, g.OU, g.DC)
 }
 
-// Groups type is the slice of Group
-type Groups struct {
-	sync.RWMutex
-	groups []Group `toml:"groups"`
+// HasQuery search for given query in Queries slice of Group
+// returns boolean value wheater it is found or not
+func (g Group) HasQuery(query string) bool {
+	glog.Infof("Searching for query: %s", query)
+	for _, q := range g.Queries {
+		if util.CleanQuery(q) == util.CleanQuery(query) {
+			glog.Info("Query found")
+			return true
+		}
+	}
+	glog.Info("Query not found")
+	return false
 }
 
-// NewGroups can be used to
+// NewGroups creates Groups by given configs in viper.Viper instance
+// returns pointer to created groups instance
 func NewGroups(c viper.Viper) (*Groups, error) {
 	glog.Info("Creating new group from configurations")
-	g := Groups{}
+	groups := Groups{}
+	g := []Group{}
 
-	err := c.UnmarshalKey("groups", &g.groups)
+	// unmarshal the config into slice of groups
+	err := c.UnmarshalKey("groups", &g)
 	if err != nil {
 		glog.Error("cannot unmarshal groups")
 		return nil, err
 	}
-	return &g, nil
-}
-
-// Add can be used to insert group data to groups
-func (g *Groups) Add(group ...Group) {
-	glog.Info("Adding a group into list: %+v", group)
-	g.Lock()
-	g.groups = append(g.groups, group...)
-	g.Unlock()
+	// range over groups from configuration
+	// fill groups map with fullname(DN) as a key and group as a value
+	for _, group := range g {
+		groups[group.GetFullname()] = group
+	}
+	return &groups, nil
 }
 
 // Get searchs group by group name in g.groups slice
-func (g *Groups) Get(groupName string) (Group, bool) {
-	glog.Infof("Searching for a group %s", groupName)
-	g.RLock()
-	for _, group := range g.groups {
-		if group.GetFullname() == groupName {
-			glog.Infof("Found the group: %+v", group)
-			g.RUnlock()
-			return group, true
+// example group name: 'CN=Wizards,OU=Gryfinndor,DC=White,DC=com'
+func (g Groups) get(groupName string) (Group, bool) {
+	group, ok := g[groupName]
+	if !ok {
+		return Group{}, ok
+	}
+	return group, ok
+}
+
+// Search receives groupNames(DN) and searchs in the map
+func (g Groups) Search(groupNames ...string) (Group, bool) {
+	var (
+		group Group
+		found bool
+	)
+	// range over given group names
+	for _, name := range groupNames {
+		glog.Infof("Searching for a group %s", name)
+		group, found = g.get(name)
+		if !found {
+			continue
 		}
 	}
-	g.RUnlock()
-	glog.Infof("Such group does not exist")
-	return Group{}, false
+	if !found {
+		glog.Infof("Such group does not exist")
+	}
+	return group, found
 }
