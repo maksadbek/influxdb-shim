@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"gopkg.in/fatih/set.v0"
 
 	"github.com/Maksadbek/influxdb-shim/auth"
+	"github.com/Maksadbek/influxdb-shim/conf"
+	"github.com/Maksadbek/influxdb-shim/util"
 	"github.com/bmizerany/pat"
 	"github.com/golang/glog"
 	"github.com/influxdata/influxdb/client/v2"
@@ -18,6 +19,7 @@ import (
 var (
 	errProhibitedQuery = errors.New("This query is prohibited")
 	errUserNotFound    = errors.New("User with such uid and password not found")
+	errNoSuchGroup     = errors.New("This group is not configured")
 )
 
 type route struct {
@@ -34,17 +36,19 @@ type handler struct {
 	blacklist  *set.Set
 	source     *auth.Source
 	signer     *auth.Signer
+	groups     conf.Groups
 	useBindDN  bool
 }
 
 // NewHandler create new handler object
-func NewHandler(c client.HTTPConfig, b *set.Set, source *auth.Source, signer *auth.Signer) *handler {
+func NewHandler(c client.HTTPConfig, b *set.Set, source *auth.Source, signer *auth.Signer, groups conf.Groups) *handler {
 	h := &handler{
 		mux:        pat.New(),
 		influxConf: c,
 		blacklist:  b,
 		source:     source,
 		signer:     signer,
+		groups:     groups,
 	}
 	h.SetRoutes([]route{
 		route{
@@ -125,24 +129,36 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.signer.Parse(tokenString)
+	user, err := h.signer.Parse(tokenString)
 	if err != nil {
 		glog.Errorf("Invalid access token")
 		http.Error(w, "Invalid access token", http.StatusBadRequest)
 		return
 	}
 
-	// TODO check user's groups
-	cleanedQuery := strings.Replace(strings.ToLower(strings.TrimSpace(q)), " ", "", -1)
-	// check if user in blacklist
-	if h.blacklist.Has(cleanedQuery) {
-		glog.Infof("Blocked query('%s') was denied", q)
+	var (
+		found bool
+		group conf.Group
+	)
+
+	group, found = h.groups.Search(user.GroupNames...)
+	// if groups was not found, then fail
+	if !found {
+		http.Error(w, errNoSuchGroup.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cleanedQuery := util.CleanQuery(q)
+	// check if the query in global blacklist or denied for user's group
+	if h.blacklist.Has(cleanedQuery) || group.HasQuery(q) {
+		glog.Infof("The query('%s') in blacklist", q)
 		http.Error(w, errProhibitedQuery.Error(), http.StatusForbidden)
 		return
 	}
 
 	glog.Infof("Query '%s' to database: '%s'", q, db)
 
+	// create new InfluxDB client
 	c, err := client.NewHTTPClient(h.influxConf)
 	if err != nil {
 		glog.Errorf("Unable to open connection to InfluxDB: %v", err)
@@ -150,6 +166,7 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// send query to InfluxDB
 	query := client.NewQuery(q, db, "ns")
 	response, err := c.Query(query)
 	if err != nil {
