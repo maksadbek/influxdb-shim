@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogits/gogs/modules/auth/ldap"
+	"github.com/Maksadbek/gogs/modules/auth/ldap"
 )
 
 func TestLogin(t *testing.T) {
