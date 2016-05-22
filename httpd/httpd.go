@@ -6,15 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"gopkg.in/fatih/set.v0"
-
-	"github.com/Maksadbek/influxdb-shim/auth"
-	"github.com/Maksadbek/influxdb-shim/conf"
 	"github.com/golang/glog"
-	"github.com/influxdata/influxdb/client/v2"
 	"github.com/spf13/viper"
-
-	"io/ioutil"
 )
 
 // service
@@ -25,49 +18,11 @@ type service struct {
 	Handler *handler
 }
 
-func NewService(c *viper.Viper) (*service, error) {
-	influxConfig := client.HTTPConfig{
-		Addr:      c.GetString("influxdb.addr"),
-		Username:  c.GetString("influxdb.username"),
-		Password:  c.GetString("influxdb.password"),
-		UserAgent: c.GetString("influxdb.userAgent"),
-	}
-	// blacklist of queries
-	blacklist := set.New()
-	for _, v := range c.GetStringSlice("blacklist.queries") {
-		blacklist.Add(strings.ToLower(strings.Replace(v, " ", "", -1)))
-	}
-	// new LDAP source
-	source := auth.NewSource(c)
-	// get public & priv keys for token signing
-	pubKey, err := ioutil.ReadFile(c.GetString("auth.token.pubKeyPath"))
-	if err != nil {
-		glog.Errorf("Unable to get public key path from config: %s", err.Error())
-		return nil, err
-	}
-
-	privKey, err := ioutil.ReadFile(c.GetString("auth.token.privKeyPath"))
-	if err != nil {
-		glog.Errorf("Unable to get private key path from config: %s", err.Error())
-		return nil, err
-	}
-	// create new token signer
-	signer := auth.NewSigner(
-		privKey,
-		pubKey,
-		c.GetString("auth.token.method"),
-		c.GetInt("auth.token.ttl"),
-	)
-	// get groups list from config
-	groups, err := conf.NewGroups(*c)
-	if err != nil {
-		glog.Errorf("Unable to unmarshal list of groups: %s", err.Error())
-		return nil, err
-	}
+func NewService(c viper.Viper) (*service, error) {
 	// create a new web service
 	s := &service{
 		addr:    c.GetString("web.addr"),
-		Handler: NewHandler(influxConfig, blacklist, source, signer, *groups),
+		Handler: NewHandler(c),
 		err:     make(chan error),
 	}
 

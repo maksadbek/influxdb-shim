@@ -53,7 +53,7 @@ type User struct {
 }
 
 // NewSource can be used to create new Source object with the given params
-func NewSource(c *viper.Viper) *Source {
+func NewSource(c viper.Viper) *Source {
 	return &Source{
 		s: &ldap.Source{
 			Name:              c.GetString("auth.ldap.name"),

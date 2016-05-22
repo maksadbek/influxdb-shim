@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"gopkg.in/fatih/set.v0"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/bmizerany/pat"
 	"github.com/golang/glog"
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -31,25 +34,67 @@ type route struct {
 
 // HTTP handler to InfluxDB
 type handler struct {
-	mux        *pat.PatternServeMux
-	influxConf client.HTTPConfig
-	blacklist  *set.Set
-	source     *auth.Source
-	signer     *auth.Signer
-	groups     conf.Groups
-	useBindDN  bool
+	mux            *pat.PatternServeMux
+	influxConf     client.HTTPConfig
+	blacklist      *set.Set
+	source         *auth.Source
+	signer         *auth.Signer
+	groups         conf.Groups
+	useBindDN      bool
+	adminGroupName string
 }
 
 // NewHandler create new handler object
-func NewHandler(c client.HTTPConfig, b *set.Set, source *auth.Source, signer *auth.Signer, groups conf.Groups) *handler {
-	h := &handler{
-		mux:        pat.New(),
-		influxConf: c,
-		blacklist:  b,
-		source:     source,
-		signer:     signer,
-		groups:     groups,
+func NewHandler(c viper.Viper) *handler {
+	//	client.HTTPConfig, b *set.Set, source *auth.Source, signer *auth.Signer, groups conf.Groups
+	influxConfig := client.HTTPConfig{
+		Addr:      c.GetString("influxdb.addr"),
+		Username:  c.GetString("influxdb.username"),
+		Password:  c.GetString("influxdb.password"),
+		UserAgent: c.GetString("influxdb.userAgent"),
 	}
+	// blacklist of queries
+	blacklist := set.New()
+	for _, v := range c.GetStringSlice("blacklist.queries") {
+		blacklist.Add(strings.ToLower(strings.Replace(v, " ", "", -1)))
+	}
+	// new LDAP source
+	source := auth.NewSource(c)
+	// get public & priv keys for token signing
+	pubKey, err := ioutil.ReadFile(c.GetString("auth.token.pubKeyPath"))
+	if err != nil {
+		glog.Errorf("Unable to get public key path from config: %s", err.Error())
+		return nil
+	}
+
+	privKey, err := ioutil.ReadFile(c.GetString("auth.token.privKeyPath"))
+	if err != nil {
+		glog.Errorf("Unable to get private key path from config: %s", err.Error())
+		return nil
+	}
+	// create new token signer
+	signer := auth.NewSigner(
+		privKey,
+		pubKey,
+		c.GetString("auth.token.method"),
+		c.GetInt("auth.token.ttl"),
+	)
+	// get groups list from config
+	groups, err := conf.NewGroups(c)
+	if err != nil {
+		glog.Errorf("Unable to unmarshal list of groups: %s", err.Error())
+		return nil
+	}
+	h := &handler{
+		mux:            pat.New(),
+		influxConf:     influxConfig,
+		blacklist:      blacklist,
+		source:         source,
+		signer:         signer,
+		groups:         *groups,
+		adminGroupName: c.GetString("blacklist.adminGroup"),
+	}
+
 	h.SetRoutes([]route{
 		route{
 			"query",
@@ -136,12 +181,8 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		found bool
-		group conf.Group
-	)
-
-	group, found = h.groups.Search(user.GroupNames...)
+	// search for group names
+	group, found := h.groups.Search(user.GroupNames...)
 	// if groups was not found, then fail
 	if !found {
 		http.Error(w, errNoSuchGroup.Error(), http.StatusBadRequest)
@@ -150,7 +191,7 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 
 	cleanedQuery := util.CleanQuery(q)
 	// check if the query in global blacklist or denied for user's group
-	if h.blacklist.Has(cleanedQuery) || group.HasQuery(q) {
+	if (h.blacklist.Has(cleanedQuery) || group.HasQuery(q)) && group.GetFullname() != h.adminGroupName {
 		glog.Infof("The query('%s') in blacklist", q)
 		http.Error(w, errProhibitedQuery.Error(), http.StatusForbidden)
 		return
@@ -174,6 +215,7 @@ func (h *handler) serveQuery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(response); err != nil {
 		glog.Errorf("unable to encode json: %s", err.Error())

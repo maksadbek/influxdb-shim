@@ -29,11 +29,11 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	webService, err := httpd.NewService(v)
+	webService, err := httpd.NewService(*v)
 	if err != nil {
 		glog.Fatal(err)
 	}
-	
+
 	go func() {
 		for err := range webService.Err() {
 			glog.Fatal(err)
