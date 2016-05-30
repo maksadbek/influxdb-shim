@@ -53,7 +53,9 @@ Configuations are kept in toml file format, but can be changed to any other.
         attrName    = ""
         attrSurname = ""
         attrMail    = ""        # the attribute of the user's LDAP record containing email address, example: email
-
+[qos]
+	ttl		= 600 # TTL(in seconds) of the token for rate limiter
+	limit   = 100 # count of queries allowed during the TTL
 [influxdb]
     addr        = "127.0.0.1:8086"
     username    = ""
@@ -65,13 +67,13 @@ Configuations are kept in toml file format, but can be changed to any other.
     queries     = [""]        # blacklist of queries that is prohibitied to run, example: "SHOW DATABASES"
     adminGroup  = "admin"     # admin group name, this group members can see & run everything
 # group specifications, group members have allowed and denied query list
-[[groups]]                # [[groups]]
-    ou = ""               #     ou = "Global group"
-    cn = ""               #     cn = "Admin"
-    deniedQueries = [     #     deniedQueries = [
-        "",               #         "Show measurements",
-        ""                #         "SHOW TAGS"
-    ]                     #     ]
+[[groups]]                      # [[groups]]
+    ou = ""                     #     ou = "Global group"
+    cn = ""                     #     cn = "Admin"
+    queries = [                 #     deniedQueries = [
+        "",                     #         "Show measurements",
+        ""                      #         "SHOW TAGS"
+    ]                           #     ]
 ```
 
 ## Usage

@@ -19,7 +19,9 @@
         attrName    = ""
         attrSurname = ""
         attrMail    = ""        # attribute of user's record containing email, example: 'mail'
-
+[qos]
+	ttl		= 600 # TTL(in seconds) of the token for rate limiter
+	limit   = 100 # count of queries allowed during the TTL
 [influxdb]
     addr        = "127.0.0.1:8086"
     username    = ""
