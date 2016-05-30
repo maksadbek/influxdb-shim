@@ -81,6 +81,13 @@ To use the shim users must firstly get JWT token string.
 The purpose of chosing JWT token is that it already contains the required info about user in itself.
 That is why no need to keep user info in backend.
 
+#### 0. Generate private & public keys for JWT generation
+```bash
+# generate private key
+$ openssl genrsa -out app.rsa 1024
+# generate public key
+$ openssl rsa -in app.rsa -pubout > app.rsa.pub
+```
 #### 1. Authorize with your LDAP credentials and get token string 
 
 Initially the shim listens ```8888``` port
